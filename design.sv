@@ -9,11 +9,11 @@ module branch_unit(
         case (br_op)
             5'b00000: branch = 0; // No branch
             5'b01000: branch = (rs1 == rs2); // BEQ
-            5'b01010: branch = (rs1 != rs2); // BNE
-            5'b01011: branch = (rs1 < rs2); // BLT
-            5'b01100: branch = (rs1 >= rs2); // BGE
+            5'b01001: branch = (rs1 != rs2); // BNE
+            5'b01100: branch = (rs1 < rs2); // BLT
+            5'b01101: branch = (rs1 >= rs2); // BGE
             //las siguientes son sin signo
-            5'b01101: branch = ($unsigned(rs1) < $unsigned(rs2)); // BLTU
+            5'b01110: branch = ($unsigned(rs1) < $unsigned(rs2)); // BLTU
             5'b01111: branch = ($unsigned(rs1) >= $unsigned(rs2)); // BGEU
             5'b11111: branch = 1; // JAL
             default: branch = 0; // No branch
@@ -95,7 +95,7 @@ module control_unit (
         		RUDataWrSrc = 2'b00;
         		ALUASrc = 0;
               	ALUOpcode = {fun7[5],fun3};
-        		DMCtrl = 3'b000;
+        		DMCtrl = 3'b111;
         		RUWr = 1;
                 // Asignar valores adicionales según sea necesario
             end
@@ -147,7 +147,7 @@ module control_unit (
                 RUDataWrSrc = 2'b00;
                 ALUASrc = 1;
                 ALUOpcode = 4'b0000;
-                DMCtrl = 3'b000;
+                DMCtrl = 3'b111;
                 RUWr = 0;
             end
 
@@ -222,7 +222,7 @@ module immediate_generator (
             3'b001: // Tipo S
               immediate = {{20{instruction[24]}}, instruction[24:18], instruction[4:0]};
             3'b101: // Tipo B
-                immediate = {{20{instruction[24]}} ,instruction[24], instruction[0], instruction[29:25], instruction[4:1], 1'b0};
+                immediate = {{20{instruction[24]}} ,instruction[24], instruction[0], instruction[23:18], instruction[4:1], 1'b0};
             3'b110: // Tipo j
                 immediate = {{12{instruction[24]}}, instruction[24],instruction[12:5], instruction[13], instruction[23:14], 1'b0};
             // Agregar más casos para otros tipos de instrucciones según sea necesario
@@ -294,9 +294,38 @@ module instruction_memory (
         
       	memory[8] = 8'h00; // addi x2, x0, 2
       	memory[9] = 8'h20;
-      	memory[10] = 8'h00;
-      	memory[11] = 8'h93;
-        
+      	memory[10] = 8'h01;
+      	memory[11] = 8'h13;
+
+        memory[12] = 8'h00; // add x3, x2, x1
+        memory[13] = 8'h20;
+        memory[14] = 8'h81;
+        memory[15] = 8'hb3;
+
+        memory[16] = 8'h00; // sh x3, 0(x0)
+        memory[17] = 8'h30;
+        memory[18] = 8'h10;
+        memory[19] = 8'h23;
+
+        memory[20] = 8'h00; // lh x4, 0(x0)
+        memory[21] = 8'h00;
+        memory[22] = 8'h12;
+        memory[23] = 8'h03;
+
+      	memory[24] = 8'h00; // blt x3, x2, 8
+      memory[25] = 8'h31;
+      memory[26] = 8'h44;
+        memory[27] = 8'h63;
+
+        memory[28] = 8'h01; // jalr x6, 16(x0)
+        memory[29] = 8'h00;
+        memory[30] = 8'h03;
+        memory[31] = 8'h67;
+
+      	memory[32] = 8'hff; // jal x5, -4
+      	memory[33] = 8'hdf;
+        memory[34] = 8'hf2;
+        memory[35] = 8'hef;
         // Agregar más instrucciones según sea necesario
     end
 endmodule
@@ -305,7 +334,10 @@ module monociclo (
     input logic reset,
     output logic [31:0] pc,
     output logic [31:0] instruction,
-    output logic [31:0] result
+    output logic [31:0] result,
+    output logic rs1R,rs2R,
+    output logic [31:0] rs1_data,rs2_data,
+    output logic [31:0] datos_alRegistro 
 );
     // Señales internas
     logic [31:0] next_pc;
@@ -367,6 +399,7 @@ module monociclo (
         .DMCtrl(DMCtrl),
         .RUWr(RUWr)
     );
+    
 
     register_unit ru_inst (
         .clk(clk),
@@ -374,7 +407,7 @@ module monociclo (
         .read_reg2(instruction[24:20]),
         .write_reg(instruction[11:7]),
         .write_data(ru_wr_src),
-        .reg_write(DMWr),
+        .reg_write(RUWr),
         .read_data1(rs1),
         .read_data2(rs2)
     );
@@ -415,8 +448,22 @@ module monociclo (
     );
     assign pc_plus_4 = pc + 32'd4;
     assign next_pc = (branch) ? resultado_alu : pc_plus_4;
-    assign ru_wr_src = (RUDataWrSrc == 2'b00) ? pc_plus_4:resultado_alu : dm_read_data ;
+  	always_comb begin
+    case (RUDataWrSrc)
+        2'b00: ru_wr_src = resultado_alu;
+        2'b01: ru_wr_src = dm_read_data;
+        2'b10: ru_wr_src = pc_plus_4;
+        default: ru_wr_src = 32'b0; // Valor por defecto en caso de un valor no esperado
+    endcase
+    end
+    
     // Sumador que suma 4 al pc
     
     assign result = resultado_alu;
+    assign rs1R = ALUASrc;
+    assign rs2R = ALUBSrc;
+    assign rs1_data = ALUASrc_result;
+    assign rs2_data = ALUBSrc_result;
+    assign datos_alRegistro = ru_wr_src;
+
 endmodule

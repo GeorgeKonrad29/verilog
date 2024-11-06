@@ -5,6 +5,11 @@ module monociclo_tb;
     logic [31:0] pc;
     logic [31:0] instruction;
     logic [31:0] result;
+    logic rs1R;
+    logic rs2R;
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
+    logic [31:0] datos_alRegistro;
 
     // Instancia del módulo monociclo
     monociclo uut (
@@ -12,7 +17,12 @@ module monociclo_tb;
         .reset(reset),
         .pc(pc),
         .instruction(instruction),
-        .result(result)
+        .result(result),
+        .rs1R(rs1R),
+        .rs2R(rs2R),
+        .rs1_data(rs1_data),
+        .rs2_data(rs2_data),
+        .datos_alRegistro(datos_alRegistro)
     );
 
     // Generar el reloj
@@ -37,7 +47,7 @@ module monociclo_tb;
 
     // Monitor para observar las señales
     initial begin
-        $monitor("Time: %0t | clk: %b | reset: %b | pc: %h | instruction: %h | result: %h", 
-                 $time, clk, reset, pc, instruction, result);
+        $monitor("Time: %0t | clk: %b | reset: %b | pc: %h | instruction: %h | result: %h | rs1R: %b | rs2R: %b | rs1_data: %h | rs2_data: %h | datos_alRegistro: %h", 
+                 $time, clk, reset, pc, instruction, result, rs1R, rs2R, rs1_data, rs2_data, datos_alRegistro);
     end
 endmodule
